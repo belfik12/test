@@ -1,45 +1,37 @@
-import certifi
-import httpx
-import ssl
-from telegram.request import HTTPXRequest
+# db.py
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-
-# Replace with your BotFather token
-TOKEN = "8305319004:AAGcCuufwLtRUmQfPGLndWAijloFik-SIl0"
-
-# The Telegram user ID of the recipient (you or whoever should receive messages)
-TARGET_USER_ID = 372763614  # get it using @userinfobot in Telegram
+from telegram.ext import Application, CommandHandler, ContextTypes
+from db import init_db, add_user, get_user_by_username
+import os
 
 
+TOKEN = os.getenv("BOT_TOKEN")
+init_db()
+
+async def start(update: Update, context:ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    add_user(user.id, user.username, update.effective_chat.id)
+    await update.message.reply_text("👋 Welcome to Anonymous Messenger!\nUse:\n/send @username message")
+
+async def send_anonymous(update: Update, context:ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /send @username your message")
+        return
+
+    target_username = context.args[0].replace("@", "")
+    message_text = " ".join(context.args[1:])
+    target_chat_id = get_user_by_username(target_username)
+
+    if target_chat_id:
+        await context.bot.send_message(target_chat_id, f"📩 Anonymous message:\n{message_text}")
+        await update.message.reply_text("✅ Message sent anonymously!")
+    else:
+        await update.message.reply_text("❌ That user hasn’t started the bot yet.\n contact us at @anonymousTexterM")
+
+app = Application.builder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("send", send_anonymous))
+
+app.run_polling()
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Send me any message, and I’ll forward it anonymously!"
-    )
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_text = update.message.text
-    sender_id = update.message.from_user.id
-
-    # Send to target user anonymously
-    await context.bot.send_message(
-        chat_id=TARGET_USER_ID,
-        text=f"📩 Anonymous message:\n\n{message_text}"
-    )
-
-    await update.message.reply_text("✅ Message sent anonymously!")
-
-def main():
-    
-    
-    
-    app = Application.builder().token(TOKEN).build()
-    #app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
