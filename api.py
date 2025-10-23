@@ -2,8 +2,6 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from db import init_db, add_user, get_user_by_username
-from keep_alive import keep_alive
-keep_alive()
 
 
 TOKEN = "8305319004:AAGcCuufwLtRUmQfPGLndWAijloFik-SIl0"
