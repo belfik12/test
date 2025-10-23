@@ -5,7 +5,7 @@ from db import init_db, add_user, get_user_by_username
 import os
 
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = "8305319004:AAGcCuufwLtRUmQfPGLndWAijloFik-SIl0"
 init_db()
 
 async def start(update: Update, context:ContextTypes.DEFAULT_TYPE):
