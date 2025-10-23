@@ -1,37 +1,59 @@
-# db.py
+import os
+from flask import Flask
+
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
-from db import init_db, add_user, get_user_by_username
-import os
+from threading import Thread
 
 
-TOKEN = "8305319004:AAGcCuufwLtRUmQfPGLndWAijloFik-SIl0"
-init_db()
+BOT_TOKEN = "8305319004:AAGcCuufwLtRUmQfPGLndWAijloFik-SIl0"
 
-async def start(update: Update, context:ContextTypes.DEFAULT_TYPE):
+
+# Flask app
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "🤖 Telegram Anonymous Bot is running!"
+
+# Telegram bot logic
+users = {}  # simple in-memory storage: username -> chat_id
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    add_user(user.id, user.username, update.effective_chat.id)
-    await update.message.reply_text("👋 Welcome to Anonymous Messenger!\nUse:\n/send @username message")
-
-async def send_anonymous(update: Update, context:ContextTypes.DEFAULT_TYPE):
-    if len(context.args) < 2:
-        await update.message.reply_text("Usage: /send @username your message")
+    if not user.username:
+        await update.message.reply_text("❌ You must have a Telegram username to use this bot.")
         return
 
-    target_username = context.args[0].replace("@", "")
+    users[user.username.lower()] = update.effective_chat.id
+    await update.message.reply_text("👋 Welcome! Use /send @username message to send anonymously.")
+
+async def send_anonymous(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /send @username message")
+        return
+
+    target_username = context.args[0].replace("@", "").lower()
     message_text = " ".join(context.args[1:])
-    target_chat_id = get_user_by_username(target_username)
 
-    if target_chat_id:
-        await context.bot.send_message(target_chat_id, f"📩 Anonymous message:\n{message_text}")
-        await update.message.reply_text("✅ Message sent anonymously!")
-    else:
-        await update.message.reply_text("❌ That user hasn’t started the bot yet.\n contact us at @anonymousTexterM")
+    target_chat_id = users.get(target_username)
+    if not target_chat_id:
+        await update.message.reply_text("❌ That user hasn’t started the bot yet.")
+        return
 
-app = Application.builder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("send", send_anonymous))
+    await context.bot.send_message(chat_id=target_chat_id, text=f"📩 Anonymous message:\n{message_text}")
+    await update.message.reply_text("✅ Message sent anonymously!")
 
-app.run_polling()
+def run_bot():
+    app_telegram = Application.builder().token(BOT_TOKEN).build()
+    app_telegram.add_handler(CommandHandler("start", start))
+    app_telegram.add_handler(CommandHandler("send", send_anonymous))
+    app_telegram.run_polling()
 
+# Run Telegram bot in background thread
+bot_thread = Thread(target=run_bot)
+bot_thread.start()
 
+# Run Flask web server
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=4000)
